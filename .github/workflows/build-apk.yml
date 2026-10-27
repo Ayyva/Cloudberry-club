@@ -28,37 +28,36 @@ jobs:
         with:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
 
-      - name: Find and extract Android project
+      - name: Find and extract project
         shell: bash
         run: |
-          mkdir extracted
-          ZIP_FILE=$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)
+          ZIP_FILE="cloudberry_club_refreshed_android_project_FIXED.zip"
 
-          if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: No ZIP file found in the repository root."
-            echo "Repository files:"
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "ERROR: $ZIP_FILE was not found in the repository root."
+            echo "Files available:"
             ls -la
             exit 1
           fi
 
-          echo "Found ZIP: $ZIP_FILE"
+          mkdir extracted
           unzip -q "$ZIP_FILE" -d extracted
 
           PROJECT=$(find extracted -type f -path '*/app/build.gradle' -print -quit | sed 's|/app/build.gradle$||')
 
           if [ -z "$PROJECT" ]; then
-            echo "ERROR: Could not find the Android app project inside the ZIP."
+            echo "ERROR: Android project not found inside ZIP."
             find extracted -maxdepth 5 -type f | head -100
             exit 1
           fi
 
           if [ ! -f "$PROJECT/gradlew" ]; then
-            echo "ERROR: Gradle wrapper is missing from $PROJECT"
+            echo "ERROR: Gradle wrapper missing."
             exit 1
           fi
 
-          echo "PROJECT=$PROJECT" >> "$GITHUB_ENV"
           chmod +x "$PROJECT/gradlew"
+          echo "PROJECT=$PROJECT" >> "$GITHUB_ENV"
 
       - name: Build APK
         run: ./gradlew assembleDebug
