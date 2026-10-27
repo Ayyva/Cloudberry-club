@@ -34,12 +34,12 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract Knowledge Garden project
+      - name: Extract project ZIP
         shell: bash
         run: |
           set -euo pipefail
 
-          ZIP_FILE="cloudberry_club_knowledge_garden.zip"
+          ZIP_FILE="cloudberry_club_richer_coloring_pages.zip"
 
           if [ ! -f "$ZIP_FILE" ]; then
             echo "ERROR: $ZIP_FILE was not found in the repository root."
@@ -58,6 +58,8 @@ jobs:
 
           PROJECT_DIR="$(dirname "$(dirname "$BUILD_FILE")")"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+          echo "Found project at: $PROJECT_DIR"
 
       - name: Build APK
         run: gradle -p "$PROJECT_DIR" assembleDebug
