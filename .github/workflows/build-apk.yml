@@ -36,16 +36,10 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Find and extract fixed project
-        shell: bash
+      - name: Extract project
         run: |
-          ZIP_FILE=$(find . -maxdepth 1 -type f -iname '*fixed*.zip' -print -quit)
-          if [ -z "$ZIP_FILE" ]; then
-            echo "Could not find the fixed project ZIP in the repository."
-            exit 1
-          fi
-          echo "Using project: $ZIP_FILE"
-          unzip -q "$ZIP_FILE" -d extracted
+          unzip -q cloudberry_club_refreshed_android_project.zip -d extracted
+          find extracted -name build.gradle -print
           test -f extracted/cloudberry_android_project/app/build.gradle
 
       - name: Build APK
