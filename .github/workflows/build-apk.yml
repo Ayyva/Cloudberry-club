@@ -36,14 +36,20 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract app project
+      - name: Find and extract fixed project
+        shell: bash
         run: |
-          unzip -q cloudberry_club_android_apk_project.zip -d extracted
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname '*fixed*.zip' -print -quit)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "Could not find the fixed project ZIP in the repository."
+            exit 1
+          fi
+          echo "Using project: $ZIP_FILE"
+          unzip -q "$ZIP_FILE" -d extracted
           test -f extracted/cloudberry_android_project/app/build.gradle
 
       - name: Build APK
-        run: |
-          gradle -p extracted/cloudberry_android_project assembleDebug
+        run: gradle -p extracted/cloudberry_android_project assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
