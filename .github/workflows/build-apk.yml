@@ -4,9 +4,6 @@ name: Build Cloudberry Club APK
 on:
   workflow_dispatch:
   push:
-    paths:
-      - 'cloudberry_club_refreshed_android_project_FIXED.zip'
-      - '.github/workflows/build-apk.yml'
 
 permissions:
   contents: read
@@ -31,37 +28,46 @@ jobs:
         with:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
 
-      - name: Extract project ZIP
+      - name: Find and extract Android project
         shell: bash
         run: |
-          ZIP_FILE="cloudberry_club_refreshed_android_project_FIXED.zip"
+          mkdir extracted
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)
 
-          if [ ! -f "$ZIP_FILE" ]; then
-            echo "ERROR: Could not find $ZIP_FILE in the repository root."
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: No ZIP file found in the repository root."
+            echo "Repository files:"
+            ls -la
             exit 1
           fi
 
+          echo "Found ZIP: $ZIP_FILE"
           unzip -q "$ZIP_FILE" -d extracted
 
-          PROJECT="extracted/cloudberry_android_project"
+          PROJECT=$(find extracted -type f -path '*/app/build.gradle' -print -quit | sed 's|/app/build.gradle$||')
 
-          if [ ! -f "$PROJECT/gradlew" ] || [ ! -f "$PROJECT/app/build.gradle" ]; then
-            echo "ERROR: The Android project files were not found."
-            find extracted -maxdepth 4 -type f | head -80
+          if [ -z "$PROJECT" ]; then
+            echo "ERROR: Could not find the Android app project inside the ZIP."
+            find extracted -maxdepth 5 -type f | head -100
             exit 1
           fi
 
-          chmod +x "$PROJECT/gradlew"
+          if [ ! -f "$PROJECT/gradlew" ]; then
+            echo "ERROR: Gradle wrapper is missing from $PROJECT"
+            exit 1
+          fi
+
           echo "PROJECT=$PROJECT" >> "$GITHUB_ENV"
+          chmod +x "$PROJECT/gradlew"
 
       - name: Build APK
         run: ./gradlew assembleDebug
-        working-directory: extracted/cloudberry_android_project
+        working-directory: ${{ env.PROJECT }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Cloudberry-Club-APK
-          path: extracted/cloudberry_android_project/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ env.PROJECT }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
