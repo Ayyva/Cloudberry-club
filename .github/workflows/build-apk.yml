@@ -34,19 +34,17 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract uploaded project ZIP
+      - name: Extract Knowledge Garden project
         shell: bash
         run: |
           set -euo pipefail
 
-          ZIP_FILE="$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)"
+          ZIP_FILE="cloudberry_club_knowledge_garden.zip"
 
-          if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: No ZIP file found in the repository root."
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "ERROR: $ZIP_FILE was not found in the repository root."
             exit 1
           fi
-
-          echo "Using project archive: $ZIP_FILE"
 
           mkdir -p extracted
           unzip -q "$ZIP_FILE" -d extracted
@@ -54,15 +52,12 @@ jobs:
           BUILD_FILE="$(find extracted -type f -path '*/app/build.gradle' -print -quit)"
 
           if [ -z "$BUILD_FILE" ]; then
-            echo "ERROR: Could not find app/build.gradle inside the ZIP."
-            echo "Check that you uploaded the complete Android project ZIP."
+            echo "ERROR: app/build.gradle not found inside the ZIP."
             exit 1
           fi
 
           PROJECT_DIR="$(dirname "$(dirname "$BUILD_FILE")")"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-
-          echo "Found Android project at: $PROJECT_DIR"
 
       - name: Build APK
         run: gradle -p "$PROJECT_DIR" assembleDebug
