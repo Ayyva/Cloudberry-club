@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          ZIP_FILE="cloudberry_club_richer_coloring_pages.zip"
+          ZIP_FILE="cloudberry_club_variety_coloring_collection.zip..zip"
 
           if [ ! -f "$ZIP_FILE" ]; then
             echo "ERROR: $ZIP_FILE was not found in the repository root."
