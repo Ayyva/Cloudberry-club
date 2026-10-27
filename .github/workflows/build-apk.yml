@@ -4,9 +4,7 @@ name: Build Cloudberry Club APK
 on:
   workflow_dispatch:
   push:
-    paths:
-      - '*.zip'
-      - '.github/workflows/build-apk.yml'
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -36,19 +34,43 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract project
+      - name: Extract uploaded project ZIP
+        shell: bash
         run: |
-          unzip -q cloudberry_club_refreshed_android_project.zip -d extracted
-          find extracted -name build.gradle -print
-          test -f extracted/cloudberry_android_project/app/build.gradle
+          set -euo pipefail
+
+          ZIP_FILE="$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)"
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: No ZIP file found in the repository root."
+            exit 1
+          fi
+
+          echo "Using project archive: $ZIP_FILE"
+
+          mkdir -p extracted
+          unzip -q "$ZIP_FILE" -d extracted
+
+          BUILD_FILE="$(find extracted -type f -path '*/app/build.gradle' -print -quit)"
+
+          if [ -z "$BUILD_FILE" ]; then
+            echo "ERROR: Could not find app/build.gradle inside the ZIP."
+            echo "Check that you uploaded the complete Android project ZIP."
+            exit 1
+          fi
+
+          PROJECT_DIR="$(dirname "$(dirname "$BUILD_FILE")")"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+          echo "Found Android project at: $PROJECT_DIR"
 
       - name: Build APK
-        run: gradle -p extracted/cloudberry_android_project assembleDebug
+        run: gradle -p "$PROJECT_DIR" assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Cloudberry-Club-APK
-          path: extracted/cloudberry_android_project/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
