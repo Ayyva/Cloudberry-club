@@ -1,11 +1,14 @@
 
-name: Build Cloudberry Club APK
+name: Build and Release Cloudberry Club APK
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -15,6 +18,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -32,41 +37,73 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Find and extract project
+      - name: Find latest project ZIP
         shell: bash
         run: |
           set -euo pipefail
 
-          ZIP_FILE="cloudberry_club_routine_activity_library.zip"
+          BEST_ZIP=""
+          BEST_DATE=0
 
-          if [ ! -f "$ZIP_FILE" ]; then
-            echo "::error::Upload $ZIP_FILE to the repository root."
+          while IFS= read -r ZIP; do
+            DATE=$(git log -1 --format=%ct -- "$ZIP")
+            DATE=${DATE:-0}
+
+            if unzip -Z1 "$ZIP" | grep -qE '(^|/)app/build.gradle$'; then
+              if [ "$DATE" -ge "$BEST_DATE" ]; then
+                BEST_DATE=$DATE
+                BEST_ZIP=$ZIP
+              fi
+            fi
+          done < <(find . -maxdepth 1 -type f -iname '*.zip')
+
+          if [ -z "$BEST_ZIP" ]; then
+            echo "::error::No project ZIP containing app/build.gradle was found."
+            echo "Upload your Android project ZIP to the repository root."
             exit 1
           fi
 
+          echo "Using project ZIP: $BEST_ZIP"
+
           mkdir -p extracted
-          unzip -q "$ZIP_FILE" -d extracted
+          unzip -q "$BEST_ZIP" -d extracted
 
           BUILD_FILE=$(find extracted -type f \
             -path '*/app/build.gradle' -print -quit)
 
-          if [ -z "$BUILD_FILE" ]; then
-            echo "::error::Could not find app/build.gradle in the ZIP."
+          PROJECT_DIR=$(dirname "$(dirname "$BUILD_FILE")")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Build APK
+        run: |
+          set -euo pipefail
+          gradle -p "$PROJECT_DIR" assembleDebug
+
+          APK=$(find "$PROJECT_DIR/app/build/outputs/apk/debug" \
+            -type f -name '*.apk' -print -quit)
+
+          if [ -z "$APK" ]; then
+            echo "::error::APK was not generated."
             exit 1
           fi
 
-          PROJECT_DIR="$(dirname "$(dirname "$BUILD_FILE")")"
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          mkdir -p release
+          cp "$APK" release/Cloudberry-Club.apk
 
-          echo "Found project at: $PROJECT_DIR"
-
-      - name: Build APK
-        run: gradle -p "$PROJECT_DIR" assembleDebug
-
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Cloudberry-Club-APK
-          path: extracted/**/app/build/outputs/apk/debug/*.apk
+          path: release/Cloudberry-Club.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            release/Cloudberry-Club.apk \
+            --title "Cloudberry Club $GITHUB_REF_NAME" \
+            --generate-notes
