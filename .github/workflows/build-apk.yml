@@ -32,16 +32,15 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract updated project
+      - name: Find and extract project
         shell: bash
         run: |
           set -euo pipefail
 
-          ZIP_FILE="cloudberry_club_no_marshmallow_companion.zip"
+          ZIP_FILE="cloudberry_club_routine_activity_library.zip"
 
           if [ ! -f "$ZIP_FILE" ]; then
-            echo "ERROR: Updated project ZIP not found."
-            echo "Upload $ZIP_FILE to the repository root."
+            echo "::error::Upload $ZIP_FILE to the repository root."
             exit 1
           fi
 
@@ -52,14 +51,14 @@ jobs:
             -path '*/app/build.gradle' -print -quit)
 
           if [ -z "$BUILD_FILE" ]; then
-            echo "ERROR: Could not find app/build.gradle."
+            echo "::error::Could not find app/build.gradle in the ZIP."
             exit 1
           fi
 
           PROJECT_DIR="$(dirname "$(dirname "$BUILD_FILE")")"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-          echo "Project found at: $PROJECT_DIR"
+          echo "Found project at: $PROJECT_DIR"
 
       - name: Build APK
         run: gradle -p "$PROJECT_DIR" assembleDebug
