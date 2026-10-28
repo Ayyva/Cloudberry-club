@@ -41,14 +41,15 @@ jobs:
 
           if [ ! -f "$ZIP_FILE" ]; then
             echo "ERROR: Updated project ZIP not found."
-            echo "Upload $ZIP_FILE to the repository's main page."
+            echo "Upload $ZIP_FILE to the repository root."
             exit 1
           fi
 
           mkdir -p extracted
           unzip -q "$ZIP_FILE" -d extracted
 
-          BUILD_FILE=$(find extracted -type f -path '*/app/build.gradle' -print -quit)
+          BUILD_FILE=$(find extracted -type f \
+            -path '*/app/build.gradle' -print -quit)
 
           if [ -z "$BUILD_FILE" ]; then
             echo "ERROR: Could not find app/build.gradle."
@@ -58,7 +59,7 @@ jobs:
           PROJECT_DIR="$(dirname "$(dirname "$BUILD_FILE")")"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-          echo "Android project found at: $PROJECT_DIR"
+          echo "Project found at: $PROJECT_DIR"
 
       - name: Build APK
         run: gradle -p "$PROJECT_DIR" assembleDebug
